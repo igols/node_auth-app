@@ -92,14 +92,8 @@ const login = async (req, res) => {
       { expiresIn: '30m' },
     );
 
-    return res.status(200).send({
-      accessToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-    });
+    res.cookie('accessToken', accessToken, { httpOnly: true, maxAge: 900000 });
+    res.redirect(`${process.env.CLIENT_HOST}/profile`);
   } catch (error) {
     res.status(500).send({ error: 'Внутрішня помилка сервера' });
   }
@@ -107,9 +101,82 @@ const login = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    res.status(204).send();
+    res.clearCookie('accessToken');
+    res.redirect(`${process.env.CLIENT_HOST}/login`);
   } catch (error) {
     res.status(500).send({ error: 'Внутрішня помилка сервера' });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ where: { email } });
+
+    if (user) {
+      const resetToken = uuidv4();
+
+      user.resetToken = resetToken;
+      await user.save();
+      await emailService.sendResetPasswordEmail(email, resetToken);
+    }
+    res.send('Лист для скидання надіслано');
+  } catch (error) {
+    res.status(500).send('Помилка сервера');
+  }
+};
+
+const resetPasswordConfirm = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    const user = await User.findOne({ where: { resetToken: token } });
+
+    if (!user) {
+      return res.status(400).send('Недійсний токен');
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.resetToken = null;
+    await user.save();
+    res.send('Пароль успішно змінено');
+  } catch (error) {
+    res.status(500).send('Помилка сервера');
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    const { name, email, newPassword, oldPassword } = req.body;
+
+    if (name) {
+      user.name = name;
+    }
+
+    if (newPassword || (email && email !== user.email)) {
+      const passwordCorrect = await bcrypt.compare(oldPassword, user.password);
+
+      if (!passwordCorrect) {
+        return res.status(400).send('Невірний старий пароль');
+      }
+
+      if (newPassword) {
+        user.password = await bcrypt.hash(newPassword, 10);
+      }
+
+      if (email && email !== user.email) {
+        const oldEmail = user.email;
+
+        user.email = email;
+        await emailService.sendEmailChangeNotification(oldEmail);
+      }
+    }
+
+    await user.save();
+    res.send('Профіль оновлено');
+  } catch (error) {
+    res.status(500).send('Помилка сервера');
   }
 };
 
@@ -118,4 +185,7 @@ module.exports = {
   activation,
   login,
   logout,
+  forgotPassword,
+  resetPasswordConfirm,
+  updateProfile,
 };

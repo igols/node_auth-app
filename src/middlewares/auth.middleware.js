@@ -16,14 +16,7 @@ const authMiddleware = (req, res, next) => {
   }
 
   try {
-    const userData = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-
-    req.user = userData;
-
-    if (!userData) {
-      return res.status(401).send('email не авторизовано');
-    }
-
+    req.user = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     next();
   } catch (error) {
     return res.status(401).send('недійсний токен');

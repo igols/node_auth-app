@@ -1,6 +1,8 @@
 'use strict';
 
 const express = require('express');
+const cookieParser = require('cookie-parser');
+const { authRouter } = require('./routers/auth.router.js');
 
 require('dotenv').config();
 
@@ -8,8 +10,7 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 
 app.use(express.json());
-
-const { authRouter } = require('./routers/auth.router.js');
+app.use(cookieParser());
 
 app.use(authRouter);
 

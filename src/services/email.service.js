@@ -28,7 +28,24 @@ const activateSendEmail = (email, token) => {
   return send(email, subject, html);
 };
 
+const sendResetPasswordEmail = (email, token) => {
+  const subject = 'Password Reset';
+  const href = `${process.env.CLIENT_HOST}/reset-password/${token}`;
+  const html = `<h1>Reset Password</h1><a href="${href}">${href}</a>`;
+
+  return send(email, subject, html);
+};
+
+const sendEmailChangeNotification = (email) => {
+  const subject = 'Email changed';
+  const html = `<h1>Your email has been changed</h1><p>If you didn't do this, contact support.</p>`;
+
+  return send(email, subject, html);
+};
+
 module.exports = {
   activateSendEmail,
   send,
+  sendResetPasswordEmail,
+  sendEmailChangeNotification,
 };
