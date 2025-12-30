@@ -17,6 +17,10 @@ app.get('/', (req, res) => {
   res.send('index!');
 });
 
+app.use((req, res) => {
+  res.status(404).send('Сторінку не знайдено');
+});
+
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log('server is runn');

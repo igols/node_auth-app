@@ -8,12 +8,12 @@ const jwt = require('jsonwebtoken');
 
 const register = async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    const { email, password, name } = req.body || {};
 
-    if (!email || !password) {
+    if (!email || !password || !name) {
       return res
         .status(400)
-        .send('Будь ласка, надішліть email та password через POST запит');
+        .send('перевірте наявність email, password та name');
     }
 
     if (password.length < 10) {
@@ -31,6 +31,7 @@ const register = async (req, res) => {
     const activationToken = uuidv4();
 
     const newUser = await User.create({
+      name,
       email,
       password: hashedPassword,
       activationToken,
@@ -46,6 +47,7 @@ const register = async (req, res) => {
     res.status(500).send({ error: error.message });
   }
 };
+
 const activation = async (req, res) => {
   try {
     const { activationToken } = req.params;
@@ -59,10 +61,7 @@ const activation = async (req, res) => {
     user.activationToken = null;
     await user.save();
 
-    res.send({
-      message: 'Акаунт успішно активовано!',
-      email: user.email,
-    });
+    res.redirect(`${process.env.CLIENT_HOST}/profile`);
   } catch (error) {
     res.status(500).send({ error: 'Внутрішня помилка сервера' });
   }
@@ -74,13 +73,13 @@ const login = async (req, res) => {
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
-      return res.status(401).send('Невірна пошта');
+      return res.status(401).send('Невірні дані');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      return res.status(401).send('Невірний пароль');
+      return res.status(401).send('Невірні дані');
     }
 
     if (user.activationToken !== null) {
@@ -88,19 +87,27 @@ const login = async (req, res) => {
     }
 
     const accessToken = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user.id, email: user.email, name: user.name },
       process.env.JWT_ACCESS_SECRET,
       { expiresIn: '30m' },
     );
 
-    res.send({
-      message: 'з поверненням!',
+    return res.status(200).send({
       accessToken,
       user: {
         id: user.id,
+        name: user.name,
         email: user.email,
       },
     });
+  } catch (error) {
+    res.status(500).send({ error: 'Внутрішня помилка сервера' });
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    res.status(204).send();
   } catch (error) {
     res.status(500).send({ error: 'Внутрішня помилка сервера' });
   }
@@ -110,4 +117,5 @@ module.exports = {
   register,
   activation,
   login,
+  logout,
 };
